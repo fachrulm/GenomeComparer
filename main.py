@@ -120,7 +120,7 @@ def sixway(xy_z_merge, xz_y_merge, yz_x_merge, x, y, z):
                         right_on=['{} id'.format(z), '{} id'.format(y), 'ref ({}) id'.format(x)])
     triplets = triplets[['{} id'.format(z), '{} id'.format(y), '{} id'.format(x),
                          '{} Exon(s)_x'.format(z), '{} Exon(s)_x'.format(y), '{} Exon(s)_x'.format(x),
-                         '{}-{} ccode'.format(z, y), 'A-D ccode'.format(z, x), '{}-{} ccode'.format(y, z),
+                         '{}-{} ccode'.format(z, y), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(y, z),
                          '{}-{} ccode'.format(y, x), '{}-{} ccode'.format(x, z), '{}-{} ccode'.format(x, y)]]
 
     triplets.columns = [z, y, x, '{} Exon(s)'.format(z), '{} Exon(s)'.format(y), '{} Exon(s)'.format(x),
@@ -129,8 +129,12 @@ def sixway(xy_z_merge, xz_y_merge, yz_x_merge, x, y, z):
     return triplets
 
 
-def crossch(ref2, triplets):
+def crossch(existl, triplets, x, y, z):
     """Crosscheck with consortium list"""
+    for i in [x, y ,z]:
+        triplets[i] = triplets_2[i].str.replace('\.[0-9]*','')
+    bothm_pr = pd.merge(triplets, existl, left_on=[x, y, z], right_on=['A', 'B', 'D'],
+                        indicator=True, how='inner')
 
 
 def main():
@@ -150,6 +154,8 @@ def main():
     parser.add_argument("--aligned",
                         help="Template for the aligned statistics, eg ?_on_?.stats.tsv. It must contain two ?",
                         default="?_on_?.stats.tsv")
+    parser.add_argument("--existl",
+                        help="Existing list to compare to, eg wheat.homeolog_groups.chr1.")
     parser.add_argument("--out", help="Output file")
     # parser.add_argument("--inmerge",
     #                     help="Initial merge of the reference statistics, aligned statistics, and TMAP files. It must contain two ?",
@@ -160,6 +166,7 @@ def main():
     comparisons = dict()
     aligned_stats = dict()
     ref_stats = dict()
+    initial_merge = dict()
 
     genomes = [args.A, args.B, args.D]
     # Load the reference statistics into the dictionary
@@ -168,19 +175,20 @@ def main():
 
     template = re.sub("\?", "{}", args.aligned)
     comp_template = re.sub("\?", "{}", args.tmap)
+
     for x, y in itertools.permutations(genomes, 2):
         aligned_stats[(x, y)] = load_aligned_stats(template.format(x, y))
-        comparisons[genome] = load_comparisons(comp_template.format(x, y))
+        comparisons[(x, y)] = load_comparisons(comp_template.format(x, y))
 
-        ref = ref_stats[genome]
-        aligned = aligned_stats[genome]
-        comparison = comparisons[genome]
+    for x, y in itertools.permutations(genomes, 2):
+        initial_merge[(x, y)] = init_merge(ref_stats[y], aligned_stats[(x, y)], comparisons[(x, y)])
+        pre_ref_merge(initial_merge[(x, y)], x, y)
 
-        init_merge[genome] = init_merge(re.sub("\?", genome, args.inmerge))
+    for x, y, z in itertools.permutations(genomes, 3):
+        ref_merge[(x, y)] = ref_merge(init_merge[(x, z)], init_merge[(y, z)], x, y, z)
 
-        merge = init_merge[genome]
-
-        pre_ref_merge[genome] = pre_ref_merge()
+    for x, y, z in itertools.combinations(genomes, 3):
+        triplets = sixway(ref_merge[(x, y)], ref_merge[(x, z)], ref_merge[(y, z)], x, y, z)
 
 
 
