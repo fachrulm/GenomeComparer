@@ -106,14 +106,26 @@ def ref_merge(mergexz, mergeyz, x, y, z):
                      "ref ({}) gene".format(z)]]
     return zmerge
 
-def sixway(a_merge,b_merge,d_merge):
-    pretrip = pd.merge(a_merge,b_merge,left_on=['1D id','ref (1A) id','1B id'],right_on=['1D id','1A id','ref (1B) id'])
-    pretrip = pretrip.drop_duplicates(subset='1D id', keep=False)
-    triplets = pd.merge(pretrip,d_merge,left_on=['1A id','1B id','1D id'],right_on=['1A id','1B id','ref (1D) id'])
-    triplets = triplets[['1A id', '1B id', '1D id', 'A Exon(s)_x', 'B Exon(s)_x', 'D Exon(s)_x', 'A-B ccode',
-                              'A-D ccode', 'B-A ccode', 'B-D ccode', 'D-A ccode', 'D-B ccode']]
-    triplets.columns = ['1A', '1B', '1D', 'A Exon(s)', 'B Exon(s)', 'D Exon(s)', 'A-B ccode', 'A-D ccode',
-                          'B-A ccode', 'B-D ccode', 'D-A ccode', 'D-B ccode']
+
+def sixway(xy_z_merge, xz_y_merge, yz_x_merge, x, y, z):
+
+    pretrip = pd.merge(xy_z_merge, xz_y_merge,
+                       left_on=['{} id'.format(x), 'ref ({}) id'.format(z), '{} id'.format(y)],
+                       right_on=["{} id".format(x), "{} id".format(z), "ref ({}) id".format(y)]
+                       )
+    pretrip = pretrip.drop_duplicates(subset='{} id'.format(x), keep=False)
+    triplets = pd.merge(pretrip,
+                        yz_x_merge,
+                        left_on=['{} id'.format(z), '{} id'.format(y), '{} id'.format(x)],
+                        right_on=['{} id'.format(z), '{} id'.format(y), 'ref ({}) id'.format(x)])
+    triplets = triplets[['{} id'.format(z), '{} id'.format(y), '{} id'.format(x),
+                         '{} Exon(s)_x'.format(z), '{} Exon(s)_x'.format(y), '{} Exon(s)_x'.format(x),
+                         '{}-{} ccode'.format(z, y), 'A-D ccode'.format(z, x), '{}-{} ccode'.format(y, z),
+                         '{}-{} ccode'.format(y, x), '{}-{} ccode'.format(x, z), '{}-{} ccode'.format(x, y)]]
+
+    triplets.columns = [z, y, x, '{} Exon(s)'.format(z), '{} Exon(s)'.format(y), '{} Exon(s)'.format(x),
+                        '{}-{} ccode'.format(z, y), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(y, z),
+                        '{}-{} ccode'.format(y, x), '{}-{} ccode'.format(x, z), '{}-{} ccode'.format(x, y)]
     return triplets
 
 
@@ -138,9 +150,10 @@ def main():
     parser.add_argument("--aligned",
                         help="Template for the aligned statistics, eg ?_on_?.stats.tsv. It must contain two ?",
                         default="?_on_?.stats.tsv")
-    parser.add_argument("--inmerge",
-                        help="Initial merge of the reference statistics, aligned statistics, and TMAP files. It must contain two ?",
-                        default="nt_??")
+    parser.add_argument("--out", help="Output file")
+    # parser.add_argument("--inmerge",
+    #                     help="Initial merge of the reference statistics, aligned statistics, and TMAP files. It must contain two ?",
+    #                     default="nt_??")
     args = parser.parse_args()
 
 
@@ -153,9 +166,11 @@ def main():
     for genome in genomes:
         ref_stats[genome] = load_ref_stats(re.sub("\?", genome, args.ref))
 
-        aligned_stats[genome] = load_aligned_stats(re.sub("\?", genome, args.aligned))
-
-        comparisons[genome] = load_comparisons(re.sub("\?", genome, args.tmap))
+    template = re.sub("\?", "{}", args.aligned)
+    comp_template = re.sub("\?", "{}", args.tmap)
+    for x, y in itertools.permutations(genomes, 2):
+        aligned_stats[(x, y)] = load_aligned_stats(template.format(x, y))
+        comparisons[genome] = load_comparisons(comp_template.format(x, y))
 
         ref = ref_stats[genome]
         aligned = aligned_stats[genome]
@@ -177,7 +192,9 @@ def main():
     st_1A1B = pd.read_csv('1A_on_1B.stats.tsv', sep='\t')
     comp_1A1B = pd.read_csv('1A_on_1B.compare.tmap', sep='\t')
 
-
+    # Let's say the result is a pandas DataFrame
+    df = pd.DataFrame()
+    df.to_csv(args.out, sep="\t")
 
 
 
