@@ -16,7 +16,6 @@ def bestone(row):
     """Function to create rank column"""
     # Between the triple " is a doctstring, i.e. the documentation for the funtion
 
-
     if row['ccode'] == '=':
         val = 10
     elif row['ccode'] == '_':
@@ -37,6 +36,26 @@ def bestone(row):
         val = 2
     else:
         val = 1
+    return val
+
+
+def categ(row):
+    if row['rank'] in (10, 9):
+        val = 'Match'
+    elif row['rank'] in (8, 7):
+        val = 'Fusion-Match'
+    elif row['rank'] == 6:
+        val = 'Extension'
+    elif row['rank'] == 5:
+        val = 'Alternative Splicing'
+    elif row['rank'] == 4:
+        val = 'Overlap'
+    elif row['rank'] == 3:
+        val = 'Intronic'
+    elif row['rank'] == 2:
+        val = 'Fragment'
+    else:
+        val = 'Unknown'
     return val
 
 
@@ -63,15 +82,22 @@ def load_aligned_stats(path):
     ali.columns = ['TID_y', "GID_y", '# Exon number_y']
     return ali
 
+
 def load_comparisons(path):
+    """Input is refmap file"""
+    refmap = dict()
     com = pd.read_csv(path, sep='\t')
     com = com.loc[:, ['tid', "gid", 'ccode', "ref_id", 'ref_gene']]
     com.columns = com.columns.str.upper()
     strip_path(com)
-    com['RANK'] = com.apply(bestone, axis=1)
-    com = com.loc[(com['RANK'] >= 9) | ~com['GID'].duplicated()]
-    com = com.loc[(com['RANK'] >= 9) | ~com['REF_GENE'].duplicated()]
-    return com
+    a = (com['REF_ID'].str.contains('LC'))
+    refmap['LC'] = com.loc[a]
+    refmap['HC'] = com.loc[~a]
+    for i in ['LC','HC']:
+        refmap[i] = refmap[i].dropna()
+        refmap[i]['rank'] = refmap[i].apply(bestone, axis=1)
+        refmap[i]['category'] = refmap[i].apply(categ, axis=1)
+    return refmap
 
 def init_merge(ref, aligned, comparison):
     merge = pd.merge(pd.merge(ref,aligned,left_on='TID_x',right_on='TID_y'),
@@ -132,9 +158,39 @@ def sixway(xy_z_merge, xz_y_merge, yz_x_merge, x, y, z):
 def crossch(existl, triplets, x, y, z):
     """Crosscheck with consortium list"""
     for i in [x, y ,z]:
-        triplets[i] = triplets_2[i].str.replace('\.[0-9]*','')
-    bothm_pr = pd.merge(triplets, existl, left_on=[x, y, z], right_on=['A', 'B', 'D'],
+        triplets[i] = triplets[i].str.replace('\.[0-9]*','')
+    bothm = pd.merge(triplets, existl, left_on=[x, y, z], right_on=['A', 'B', 'D'],
                         indicator=True, how='inner')
+    return bothm
+
+
+def excode(xlist, x, y, z):
+    """Get list of exons and ccode"""
+    refs = dict()
+    bothm_ex = dict()
+    for i in [x, y ,z]:
+
+        refs[i] = pd.read_csv('chr{}.reference.stats.tsv'.format(i),sep='\t')
+        refs[i] = refs[i][['GID', '# coding exons']]
+        refs[i] = refs[i].sort_values(['GID','# coding exons'], ascending=False)
+        refs[i].columns = ['GID', '{} coding exons'.format(i)]
+        refs[i] = refs[i].drop_duplicates(subset='GID', keep='first')
+
+
+        bothm_ex = pd.merge(xlist,refs[i],left_on=['A'],right_on=['GID'])
+    bothm_ex = bothm_ex[['1A', '1B', '1D', 'A Exon(s)', 'B Exon(s)', 'D Exon(s)', 'A-B ccode', 'A-D ccode', 'B-A ccode',
+         'B-D ccode', 'D-A ccode', 'D-B ccode']]
+    return bothm_ex
+
+def allmatches(df,x,y,z):
+    x = (df['{} Exon(s)_x'.format(x)] == df['{} Exon(s)_x'.format(y)]) & \
+        (df['{} Exon(s)_x'.format(y)] == df['{} Exon(s)_x'.format(z)])
+    a = df['{}-{} ccode'.format(x, y)].isin(['=', '_']) & df['{}-{} ccode'.format(x, z)].isin(['=', '_']) &\
+        df['{}-{} ccode'.format(y, x)].isin(['=', '_']) & df['{}-{} ccode'.format(y, z)].isin(['=', '_']) & \
+        df['{}-{} ccode'.format(z, x)].isin(['=', '_']) & df['{}-{} ccode'.format(z, y)].isin(['=', '_'])
+    triplets_eq = df[x & a]
+    return triplets_eq
+
 
 
 def main():
@@ -145,9 +201,9 @@ def main():
     parser.add_argument("A", help="\"A\" genome name (eg. 1A)")
     parser.add_argument("B", help="\"B\" genome name (eg. 1B)")
     parser.add_argument("D", help="\"D\" genome name (eg. 1D)")
-    parser.add_argument("--tmap",
-                        help="Template for the TMAP files, eg ?_on_?.compare.tmap. It must contain two ?",
-                        default="?_on_?.compare.tmap")
+    parser.add_argument("--refmap",
+                        help="Template for the REFMAP files, eg ?_on_?.compare.tmap. It must contain two ?",
+                        default="?_on_?.compare.refmap")
     parser.add_argument("--ref",
                         help="Template for the reference statistics, eg chr?.reference.stats.tsv. It must contain one ?",
                         default="chr?.reference.stats.tsv")
@@ -194,11 +250,6 @@ def main():
 
 
 
-
-
-    ref1A = pd.read_csv('chr1A.reference.stats.tsv', sep='\t')
-    st_1A1B = pd.read_csv('1A_on_1B.stats.tsv', sep='\t')
-    comp_1A1B = pd.read_csv('1A_on_1B.compare.tmap', sep='\t')
 
     # Let's say the result is a pandas DataFrame
     df = pd.DataFrame()
