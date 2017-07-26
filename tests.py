@@ -114,6 +114,12 @@ class comparloadTester (unittest.TestCase):
             self.assertIsInstance(df, pd.DataFrame)
             self.assertEqual(list(df.columns), refcol)
 
+#class f1fetchTester(unittest.TestCase):
+
+    #def test_f1_fetch(self):
+    #    refcol = ['TID', 'GID', 'CCODE', 'REF_ID', 'REF_GENE', "CONFIDENCE", "rank", "category"]
+
+
 
 class InitMergeTester(unittest.TestCase):
 

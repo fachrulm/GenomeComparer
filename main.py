@@ -37,13 +37,13 @@ def bestone(row):
     elif row["CCODE"] in ('j', 'h', 'g', 'G'):
         val = 5
     elif row["CCODE"] in ('o', 'e', 'm'):
-        val = 4
-    elif row["CCODE"] in ('i', 'I', 'ri', 'rI'):
         val = 3
-    elif row["CCODE"] in ('x', 'X', 'p', 'P'):
+    elif row["CCODE"] in ('i', 'I', 'ri', 'rI'):
         val = 2
-    else:
+    elif row["CCODE"] in ('x', 'X', 'p', 'P'):
         val = 1
+    else:
+        val = 0
 
     return val
 
@@ -58,10 +58,12 @@ def categ(row):
     elif row['rank'] == 5:
         val = 'Alternative Splicing'
     elif row['rank'] == 4:
-        val = 'Overlap'
+        val = 'Fusion'
     elif row['rank'] == 3:
-        val = 'Intronic'
+        val = 'Overlap'
     elif row['rank'] == 2:
+        val = 'Intronic'
+    elif row['rank'] == 1:
         val = 'Fragment'
     else:
         val = 'Unknown'
@@ -101,17 +103,31 @@ def load_comparisons(path):
     """Input is refmap file"""
     # refmap = dict()
     com = pd.read_csv(path, sep='\t')
-    com = com.loc[:, ['tid', "gid", 'ccode', "ref_id", 'ref_gene']]
+    com = com.loc[:, ['tid', "gid", 'ccode', "ref_id", 'ref_gene', "nF1", "eF1", "jF1"]]
     com.columns = com.columns.str.upper()
 
     strip_path(com)
     a = ~(com['REF_ID'].str.contains('LC'))
+
     com["CONFIDENCE"] = a
+    #com["CONFIDENCE"] = str()
+
+    #for index, row in com.iterrows():
+    #    if row["TID"] is np.nan:
+    #        #com.set_value(row, "CONFIDENCE", 'None')
+    #        row["CONFIDENCE"] = 'None'
+    #        print(row)
+    #    elif row['REF_ID'].str.contains('LC'):
+    #        row["CONFIDENCE"] = False
+    #    else:
+    #        row["CONFIDENCE"] = True
+
     # refmap['LC'] = com.loc[a]
     # refmap['HC'] = com.loc[~a]
     com.dropna()
     com["rank"] = com.apply(bestone, axis=1)
     com["category"] = com.apply(categ, axis=1)
+    com = com.replace(np.nan, "-")
 
     # for i in ['LC','HC']:
     #     refmap[i] = refmap[i].dropna()
@@ -119,13 +135,45 @@ def load_comparisons(path):
     #     refmap[i]['category'] = refmap[i]
 
     #print(com.columns)
+    with open("compa.tsv", "wt") as out:
+        com.to_csv(out, sep="\t")
+
+    #comparHC = pd.DataFrame
+    #comparLC = pd.DataFrame
+
+    for index, row in com.iterrows():
+        # print(row['CONFIDENCE'])
+        if row['CONFIDENCE'] is 'False':
+            comparHC = com.drop(com.index[row])
+        elif row['CONFIDENCE'] is 'True':
+            comparLC = com.drop(com.index[row])
+    #print(com)
+    #with open("comparHC.tsv", "wt") as out:
+        #comparHC.to_csv(out, sep="\t")
+
+
     return com
+
+def getf1(comparison):
+
+    print("Category", *["{} {}".format(*_) for _ in itertools.product(["NF1", "EF1", "jF1"], ["mean", "StDEV"])],
+          sep="\t")
+    for category in comparison["category"].unique():
+        row = [category]
+        means = comparison[comparison["category"] == category][["NF1", "EF1", "JF1"]].mean().astype(list)
+        stdev = comparison[comparison["category"] == category][["NF1", "EF1", "JF1"]].std().astype(list)
+        for md, std in zip(means, stdev):
+            row.extend([round(md, 2), round(std, 2)])
+        print(*row, sep="\t")
+
+
 
 def init_merge(ref, aligned, comparison):
     merge = pd.merge(pd.merge(ref,aligned,left_on='TID_x',right_on='TID_y'),
                      comparison,left_on='TID_x',right_on='TID')
-    with open("merge.tsv", "wt") as out:
-        merge.to_csv(out, sep="\t")
+
+    #with open("merge.tsv", "wt") as out:
+    #    merge.to_csv(out, sep="\t")
     #print(merge)
     return merge
 
@@ -202,7 +250,7 @@ def sixway(xy_z_merge, xz_y_merge, yz_x_merge, x, y, z):
     with open("triplets.tsv", "wt") as out:
         triplets.to_csv(out, sep="\t")
 
-    print(triplets)
+    #print(triplets)
     return triplets
 
 
@@ -241,7 +289,10 @@ def allmatches(df,x,y,z):
         df['{}-{} ccode'.format(z, x)].isin(['=', '_']) & df['{}-{} ccode'.format(z, y)].isin(['=', '_'])
     triplets_eq = df[xx & a]
 
-    print(triplets_eq)
+    with open("triplets_eq.tsv", "wt") as out:
+        triplets_eq.to_csv(out, sep="\t")
+
+    #print(triplets_eq)
 
     return triplets_eq
 
@@ -270,6 +321,7 @@ def main():
                         default="wheat.homeolog_groups.TRIADS.chr?")
     parser.add_argument("--triplets",
                         help="Df of generated triplets.")
+    parser.add_argument("--comparcon", help="Output file")
     parser.add_argument("--out", help="Output file")
 
     # parser.add_argument("--inmerge",
@@ -284,9 +336,11 @@ def main():
     initial_merge = dict()
     refr_merge = dict()
     triplets = dict()
-
-
+    getF1 = dict()
     genomes = [args.A, args.B, args.D]
+    comparHC = pd.DataFrame(columns=list(itertools.permutations(genomes, 2)))
+    comparLC = pd.DataFrame(columns=list(itertools.permutations(genomes, 2)))
+
     # Load the reference statistics into the dictionary
     for genome in genomes:
         ref_stats[genome] = load_ref_stats(re.sub("\?", genome, args.ref))
@@ -299,6 +353,19 @@ def main():
 
     for x, y in itertools.permutations(genomes, 2):
         comparisons[(x, y)] = load_comparisons(comp_template.format(x, y))
+        #print(comparisons[(x, y)].columns)
+        for index, row in comparisons[(x, y)].iterrows():
+            #print(row)
+            if row['CONFIDENCE'] == 'False':
+                comparHC[(x, y)].append(row)
+                #comparHC[(x, y)] = comparisons[(x, y)].drop(comparisons[(x, y)].index[row])
+            elif row['CONFIDENCE'] == 'True':
+                comparLC[(x, y)].append(row)
+                #comparLC[(x, y)] = comparisons[(x, y)].drop(comparisons[(x, y)].index[row])
+        #print(comparHC[(x, y)])
+
+        getF1[(x, y)] = getf1(comparisons[(x, y)])
+
 
     for x, y in itertools.permutations(genomes, 2):
         initial_merge[(x, y)] = init_merge(ref_stats[x], aligned_stats[(x, y)], comparisons[(x, y)])
