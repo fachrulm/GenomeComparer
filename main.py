@@ -21,9 +21,7 @@ def bestone(row):
     # assert isinstance(row, pd.DataFrame), (row, row.keys())
 
     # val = 1
-    if row["CCODE"] is np.nan:
-        val = 1
-    elif row["CCODE"] == '=':
+    if row["CCODE"] == '=':
         val = 10
     elif row["CCODE"] == '_':
         val = 9
@@ -44,8 +42,10 @@ def bestone(row):
         val = 2
     elif row["CCODE"] in ('x', 'X', 'p', 'P'):
         val = 1
-    else:
+    elif row['CCODE'] is 'blank':
         val = 0
+    else:
+        val = 66
 
     return val
 
@@ -67,6 +67,8 @@ def categ(row):
         val = 'Intronic'
     elif row['rank'] == 1:
         val = 'Fragment'
+    elif row['rank'] == 0:
+        val = 'Not aligned'
     else:
         val = 'Unknown'
     return val
@@ -112,14 +114,12 @@ def load_comparisons(path):
     a = ~(com['REF_ID'].str.contains('LC'))
 
     com["CONFIDENCE"] = a
-    #com["CONFIDENCE"] = str()
 
-    # refmap['LC'] = com.loc[a]
-    # refmap['HC'] = com.loc[~a]
-    com.dropna()
+    com = com.replace(np.nan, "blank")
+    #com.dropna()
     com["rank"] = com.apply(bestone, axis=1)
     com["category"] = com.apply(categ, axis=1)
-    com = com.replace(np.nan, "-")
+    #com = com.replace(np.nan, "-")
 
     # for i in ['LC','HC']:
     #     refmap[i] = refmap[i].dropna()
@@ -256,9 +256,6 @@ def sixway(xy_z_merge, xz_y_merge, yz_x_merge, x, y, z):
                         '{}-{} ccode'.format(x, y), '{}-{} ccode'.format(x, z), '{}-{} ccode'.format(y, x),
                         '{}-{} ccode'.format(y, z), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(z, y)]
 
-    with open("triplets.tsv", "wt") as out:
-        triplets.to_csv(out, sep="\t")
-
     #print(triplets)
     return triplets
 
@@ -298,8 +295,8 @@ def allmatches(df,x,y,z):
         df['{}-{} ccode'.format(z, x)].isin(['=', '_']) & df['{}-{} ccode'.format(z, y)].isin(['=', '_'])
     triplets_eq = df[xx & a]
 
-    with open("triplets_eq.tsv", "wt") as out:
-        triplets_eq.to_csv(out, sep="\t")
+    #with open("triplets_eq.tsv", "wt") as out:
+    #    triplets_eq.to_csv(out, sep="\t")
 
     #print(triplets_eq)
 
@@ -343,13 +340,17 @@ def main():
     comparisons = dict()
     aligned_stats = dict()
     ref_stats = dict()
-    initial_merge = dict()
-    refr_merge = dict()
+    initial_merge_HC = dict()
+    initial_merge_LC = dict()
+    refr_merge_HC = dict()
+    refr_merge_LC = dict()
     triplets = dict()
     getF1 = dict()
     genomes = [args.A, args.B, args.D]
     comparHC = dict()  # pd.DataFrame(columns=list(itertools.permutations(genomes, 2)))
     comparLC = dict()  # pd.DataFrame(columns=list(itertools.permutations(genomes, 2)))
+    triplets_HC = dict()
+    triplets_LC = dict()
 
     # Load the reference statistics into the dictionary
     for genome in genomes:
@@ -389,17 +390,34 @@ def main():
 
 
     for x, y in itertools.permutations(genomes, 2):
-        initial_merge[(x, y)] = init_merge(ref_stats[x], aligned_stats[(x, y)], comparisons[(x, y)])
-        pre_ref_merge(initial_merge[(x, y)], x, y)
+        initial_merge_HC[(x, y)] = init_merge(ref_stats[x], aligned_stats[(x, y)], comparisons[(x, y)])
+        pre_ref_merge(initial_merge_HC[(x, y)], x, y)
+
+        initial_merge_LC[(x, y)] = init_merge(ref_stats[x], aligned_stats[(x, y)], comparisons[(x, y)])
+        pre_ref_merge(initial_merge_LC[(x, y)], x, y)
 
     for x, y, z in itertools.permutations(genomes, 3):
-        refr_merge[(x, y)] = ref_merge(initial_merge[(x, z)], initial_merge[(y, z)], x, y, z)
+        refr_merge_HC[(x, y)] = ref_merge(initial_merge_HC[(x, z)], initial_merge_HC[(y, z)], x, y, z)
+        refr_merge_LC[(x, y)] = ref_merge(initial_merge_LC[(x, z)], initial_merge_LC[(y, z)], x, y, z)
+
 
     for z, y, x in itertools.combinations(genomes, 3):
-        triplets = sixway(refr_merge[(x, y)], refr_merge[(x, z)], refr_merge[(y, z)], x, y, z)
+        triplets_HC = sixway(refr_merge_HC[(x, y)], refr_merge_HC[(x, z)], refr_merge_HC[(y, z)], x, y, z)
+        with open("triplets_HC.tsv", "wt") as out:
+            triplets_HC.to_csv(out, sep="\t")
+
+        triplets_LC = sixway(refr_merge_LC[(x, y)], refr_merge_LC[(x, z)], refr_merge_LC[(y, z)], x, y, z)
+        with open("triplets_LC.tsv", "wt") as out:
+            triplets_LC.to_csv(out, sep="\t")
 
     for x, y, z in itertools.combinations(genomes, 3):
-        triplets_eq = allmatches(triplets, x, y, z)
+        triplets_HC_eq = allmatches(triplets_HC, x, y, z)
+        with open("triplets_HC_eq.tsv", "wt") as out:
+            triplets_HC_eq.to_csv(out, sep="\t")
+
+        triplets_LC_eq = allmatches(triplets_LC, x, y, z)
+        with open("triplets_LC_eq.tsv", "wt") as out:
+            triplets_LC_eq.to_csv(out, sep="\t")
 
 
     # for
