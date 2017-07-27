@@ -19,9 +19,10 @@ class BestOneTester(unittest.TestCase):
                 ("f, _", 7),
                 ("n", 6),
                 ('g', 5),
-                ("m", 4),
-                ('rI', 3),
-                ('x', 2)]
+                ('f', 4),
+                ("m", 3),
+                ('rI', 2),
+                ('x', 1)]
 
         for ccode, val in vals:
             row = {"CCODE": ccode}
@@ -62,10 +63,11 @@ class CategTester(unittest.TestCase):
                 (7, 'Fusion-Match'),
                 (6, 'Extension'),
                 (5, 'Alternative Splicing'),
-                (4, 'Overlap'),
-                (3, 'Intronic'),
-                (2, 'Fragment'),
-                (1, 'Unknown')]
+                (4, 'Fusion'),
+                (3, 'Overlap'),
+                (2, 'Intronic'),
+                (1, 'Fragment'),
+                (0, 'Unknown')]
 
         for category, val in vals:
             row = {"rank": category}
@@ -108,17 +110,22 @@ class statsloadTester (unittest.TestCase):
 class comparloadTester (unittest.TestCase):
 
     def test_name_change(self):
-        refcol = ['TID', 'GID', 'CCODE', 'REF_ID', 'REF_GENE', "CONFIDENCE", "rank", "category"]
+        refcol = ['TID', 'GID', 'CCODE', 'REF_ID', 'REF_GENE', 'NF1', 'EF1', 'JF1', "CONFIDENCE", "rank", "category"]
         with open("1D_on_1A.compare.refmap", "r") as a:
             df = load_comparisons(a)
             self.assertIsInstance(df, pd.DataFrame)
             self.assertEqual(list(df.columns), refcol)
 
-#class f1fetchTester(unittest.TestCase):
 
-    #def test_f1_fetch(self):
-    #    refcol = ['TID', 'GID', 'CCODE', 'REF_ID', 'REF_GENE', "CONFIDENCE", "rank", "category"]
+class F1FileTester (unittest.TestCase):
 
+    def test_F1(self):
+        TESTDATA_FILENAME = os.path.join(os.path.dirname(__file__), '1D_on_1A.compare.refmap')
+        self.testdata = open(TESTDATA_FILENAME).read()
+
+        comparison = load_comparisons(TESTDATA_FILENAME)
+        f1 = getf1(comparison, '1D', '1A')
+        self.assertFalse(isinstance(f1, str))
 
 
 class InitMergeTester(unittest.TestCase):

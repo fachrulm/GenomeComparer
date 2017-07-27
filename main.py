@@ -7,7 +7,9 @@ import pandas as pd
 import numpy as np
 import itertools
 import re
-
+import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
+plt.style.use('bmh')
 
 __doc__ = """This script will analyse triplets of alignments to find gene triplets"""
 
@@ -112,16 +114,6 @@ def load_comparisons(path):
     com["CONFIDENCE"] = a
     #com["CONFIDENCE"] = str()
 
-    #for index, row in com.iterrows():
-    #    if row["TID"] is np.nan:
-    #        #com.set_value(row, "CONFIDENCE", 'None')
-    #        row["CONFIDENCE"] = 'None'
-    #        print(row)
-    #    elif row['REF_ID'].str.contains('LC'):
-    #        row["CONFIDENCE"] = False
-    #    else:
-    #        row["CONFIDENCE"] = True
-
     # refmap['LC'] = com.loc[a]
     # refmap['HC'] = com.loc[~a]
     com.dropna()
@@ -141,12 +133,12 @@ def load_comparisons(path):
     #comparHC = pd.DataFrame
     #comparLC = pd.DataFrame
 
-    for index, row in com.iterrows():
+    #for index, row in com.iterrows():
         # print(row['CONFIDENCE'])
-        if row['CONFIDENCE'] is 'False':
-            comparHC = com.drop(com.index[row])
-        elif row['CONFIDENCE'] is 'True':
-            comparLC = com.drop(com.index[row])
+    #    if row['CONFIDENCE'] is 'False':
+    #        comparHC = com.drop(com.index[row])
+    #    elif row['CONFIDENCE'] is 'True':
+    #        comparLC = com.drop(com.index[row])
     #print(com)
     #with open("comparHC.tsv", "wt") as out:
         #comparHC.to_csv(out, sep="\t")
@@ -154,8 +146,24 @@ def load_comparisons(path):
 
     return com
 
-def getf1(comparison):
+def pieplot(comparison,x,y,confidence):
+    leng = len(comparison)
+    a = comparison.groupby(["category"]).size().reset_index().rename(columns={0: 'count'})
+    #print("N =", sum(a['count']))
+    a.plot(labels=a["category"], y='count', kind='pie', autopct='%1.1f%%', startangle=90, figsize=(9, 9), fontsize=11)
+    plt.axis('equal')
+    plt.axis('off')
+    plt.title('{} on {} {} (n = {})'.format(x, y, confidence, leng), y=1.1, fontsize=15)
+    plt.legend(loc="best", labels=a["category"], fontsize=12)
+    plt.tight_layout()
 
+    plotsv = "%s.png" % '{}{}_{}'.format(x, y, confidence)
+    plt.savefig(plotsv)
+
+def getf1(comparison,x,y):
+    #F1 = open('{}_on_{}_F1.text'.format(x,y), 'w')
+    #sys.stdout = F1
+    print("For {} on {}".format(x,y))
     print("Category", *["{} {}".format(*_) for _ in itertools.product(["NF1", "EF1", "jF1"], ["mean", "StDEV"])],
           sep="\t")
     for category in comparison["category"].unique():
@@ -165,7 +173,8 @@ def getf1(comparison):
         for md, std in zip(means, stdev):
             row.extend([round(md, 2), round(std, 2)])
         print(*row, sep="\t")
-
+    print("###########\n")
+    #F1.close()
 
 
 def init_merge(ref, aligned, comparison):
@@ -205,8 +214,8 @@ def ref_merge(mergexz, mergeyz, x, y, z):
                      '{}-{} ccode'.format(y, z),
                      "ref ({}) id".format(z),
                      "ref ({}) gene".format(z)]]
-    with open("zmerge.tsv", "wt") as out:
-        zmerge.to_csv(out, sep="\t")
+    #with open("zmerge.tsv", "wt") as out:
+    #    zmerge.to_csv(out, sep="\t")
     #print(zmerge)
     return zmerge
 
@@ -322,6 +331,7 @@ def main():
     parser.add_argument("--triplets",
                         help="Df of generated triplets.")
     parser.add_argument("--comparcon", help="Output file")
+    parser.add_argument("--F1", help="Output file for nF1, eF1, and jF1 statistics")
     parser.add_argument("--out", help="Output file")
 
     # parser.add_argument("--inmerge",
@@ -338,8 +348,8 @@ def main():
     triplets = dict()
     getF1 = dict()
     genomes = [args.A, args.B, args.D]
-    comparHC = pd.DataFrame(columns=list(itertools.permutations(genomes, 2)))
-    comparLC = pd.DataFrame(columns=list(itertools.permutations(genomes, 2)))
+    comparHC = dict()  # pd.DataFrame(columns=list(itertools.permutations(genomes, 2)))
+    comparLC = dict()  # pd.DataFrame(columns=list(itertools.permutations(genomes, 2)))
 
     # Load the reference statistics into the dictionary
     for genome in genomes:
@@ -354,17 +364,28 @@ def main():
     for x, y in itertools.permutations(genomes, 2):
         comparisons[(x, y)] = load_comparisons(comp_template.format(x, y))
         #print(comparisons[(x, y)].columns)
-        for index, row in comparisons[(x, y)].iterrows():
-            #print(row)
-            if row['CONFIDENCE'] == 'False':
-                comparHC[(x, y)].append(row)
-                #comparHC[(x, y)] = comparisons[(x, y)].drop(comparisons[(x, y)].index[row])
-            elif row['CONFIDENCE'] == 'True':
-                comparLC[(x, y)].append(row)
-                #comparLC[(x, y)] = comparisons[(x, y)].drop(comparisons[(x, y)].index[row])
-        #print(comparHC[(x, y)])
+        #comparLC[(x, y)] = pd.DataFrame()
+        #comparHC[(x, y)] = pd.DataFrame()
+        comparLC[(x, y)] = comparisons[(x, y)][comparisons[(x, y)]["CONFIDENCE"] == False]
+        comparHC[(x, y)] = comparisons[(x, y)][comparisons[(x, y)]["CONFIDENCE"] == True]
 
-        getF1[(x, y)] = getf1(comparisons[(x, y)])
+        # for index, row in comparisons[(x, y)].iterrows():
+        #     #print(row)
+        #     if row['CONFIDENCE'] is 'False':
+        #         comparLC[(x, y)].append(row, ignore_index=True)
+        #         #comparHC[(x, y)] = comparisons[(x, y)].drop(comparisons[(x, y)].index[row])
+        #     elif row['CONFIDENCE'] is'True':
+        #         comparHC[(x, y)].append(row, ignore_index=True)
+        #         #comparLC[(x, y)] = comparisons[(x, y)].drop(comparisons[(x, y)].index[row])
+        pieplot(comparHC[(x, y)], x, y, 'HC')
+        pieplot(comparLC[(x, y)], x, y, 'LC')
+
+
+    with open('All_F1.text'.format(x,y), 'w') as F1:
+        for x, y in itertools.permutations(genomes, 2):
+            sys.stdout = F1
+            getF1[(x, y)] = getf1(comparisons[(x, y)],x,y)
+    F1.close()
 
 
     for x, y in itertools.permutations(genomes, 2):
@@ -380,10 +401,6 @@ def main():
     for x, y, z in itertools.combinations(genomes, 3):
         triplets_eq = allmatches(triplets, x, y, z)
 
-
-    #for x, y, z in genomes:
-    #    for n in list(range(1, 8)):
-    #        crosschecked = crossch(re.sub("\?", n, args.existl), triplets, x, y, z)
 
     # for
 
