@@ -153,7 +153,7 @@ def pieplot(comparison,x,y,confidence):
     a.plot(labels=a["category"], y='count', kind='pie', autopct='%1.1f%%', startangle=90, figsize=(9, 9), fontsize=11)
     plt.axis('equal')
     plt.axis('off')
-    plt.title('{} on {} {} (n = {})'.format(x, y, confidence, leng), y=1.1, fontsize=15)
+    plt.title('{} on {} {} (n = {})'.format(x, y, confidence, leng), y=1.15, fontsize=24)
     plt.legend(loc="best", labels=a["category"], fontsize=12)
     plt.tight_layout()
 
@@ -186,13 +186,16 @@ def init_merge(ref, aligned, comparison):
     return merge
 
 def pre_ref_merge(merge, x, z):
-    new_df = merge[["TID_y", 'GID', "REF_ID", 'REF_GENE', "# coding exons_x", 'CCODE']]
+    new_df = merge[["TID_y", 'GID', "REF_ID", 'REF_GENE', "# coding exons_x", 'CCODE',"NF1", "EF1", "JF1"]]
     new_df.columns = ["{} id".format(x),
                      '{} gene'.format(x),
                      "ref ({}) id".format(z),
                      "ref ({}) gene".format(z),
                      "{} Exon(s)".format(x),
-                     '{}-{} ccode'.format(x, z)]
+                     '{}-{} ccode'.format(x, z),
+                      '{}-{} nF1'.format(x, z),
+                      '{}-{} eF1'.format(x, z),
+                      '{}-{} jF1'.format(x, z)]
     new_df = new_df.replace("-", np.nan)
     new_df = new_df.dropna()
 
@@ -207,10 +210,16 @@ def ref_merge(mergexz, mergeyz, x, y, z):
                      "{} gene".format(x),
                      "{} Exon(s)".format(x),
                      '{}-{} ccode'.format(x, z),
+                     '{}-{} nF1'.format(x, z),
+                     '{}-{} eF1'.format(x, z),
+                     '{}-{} jF1'.format(x, z),
                      "{} id".format(y),
                      "{} gene".format(y),
                      "{} Exon(s)".format(y),
                      '{}-{} ccode'.format(y, z),
+                     '{}-{} nF1'.format(y, z),
+                     '{}-{} eF1'.format(y, z),
+                     '{}-{} jF1'.format(y, z),
                      "ref ({}) id".format(z),
                      "ref ({}) gene".format(z)]]
     #with open("zmerge.tsv", "wt") as out:
@@ -246,14 +255,19 @@ def sixway(xy_z_merge, xz_y_merge, yz_x_merge, x, y, z):
                         yz_x_merge,
                         left_on=['{} id'.format(x), '{} id'.format(y), '{} id'.format(z)],
                         right_on=['ref ({}) id'.format(x), '{} id'.format(y), '{} id'.format(z)])
+
+    triplets['nF1_mean'] = triplets[['{}-{} nF1'.format(x, y), '{}-{} nF1'.format(x, z), \
+                           '{}-{} nF1'.format(y, x), '{}-{} nF1'.format(y, z), '{}-{} nF1'.format(z, x),
+                            '{}-{} nF1'.format(z, y)]].mean(axis=1)
+
     triplets = triplets[['{} id'.format(x), '{} id'.format(y), '{} id'.format(z),
                          '{} Exon(s)_x'.format(x), '{} Exon(s)_x'.format(y), '{} Exon(s)_x'.format(z),
                          '{}-{} ccode'.format(x, y), '{}-{} ccode'.format(x, z), '{}-{} ccode'.format(y, z),
-                         '{}-{} ccode'.format(y, x), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(z, y)]]
+                         '{}-{} ccode'.format(y, x), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(z, y), 'nF1_mean']]
 
     triplets.columns = [x, y, z, '{} Exon(s)'.format(x), '{} Exon(s)'.format(y), '{} Exon(s)'.format(z),
                         '{}-{} ccode'.format(x, y), '{}-{} ccode'.format(x, z), '{}-{} ccode'.format(y, x),
-                        '{}-{} ccode'.format(y, z), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(z, y)]
+                        '{}-{} ccode'.format(y, z), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(z, y), 'nF1_mean']
 
     #print(triplets)
     return triplets
@@ -402,6 +416,8 @@ def main():
 
     for x, y, z in itertools.permutations(genomes, 3):
         refr_merge_HC[(x, y)] = ref_merge(initial_merge_HC[(x, z)], initial_merge_HC[(y, z)], x, y, z)
+
+
         refr_merge_LC[(x, y)] = ref_merge(initial_merge_LC[(x, z)], initial_merge_LC[(y, z)], x, y, z)
 
 
