@@ -256,22 +256,39 @@ def sixway(xy_z_merge, xz_y_merge, yz_x_merge, x, y, z):
                         left_on=['{} id'.format(x), '{} id'.format(y), '{} id'.format(z)],
                         right_on=['ref ({}) id'.format(x), '{} id'.format(y), '{} id'.format(z)])
 
-    triplets['nF1_mean'] = triplets[['{}-{} nF1'.format(x, y), '{}-{} nF1'.format(x, z), \
-                           '{}-{} nF1'.format(y, x), '{}-{} nF1'.format(y, z), '{}-{} nF1'.format(z, x),
+    triplets['nF1_mean'] = triplets[['{}-{} nF1'.format(x, y), '{}-{} nF1'.format(x, z),
+                                     '{}-{} nF1'.format(y, x), '{}-{} nF1'.format(y, z), '{}-{} nF1'.format(z, x),
                             '{}-{} nF1'.format(z, y)]].mean(axis=1)
+
+    triplets['eF1_mean'] = triplets[['{}-{} eF1'.format(x, y), '{}-{} eF1'.format(x, z),
+                                     '{}-{} eF1'.format(y, x), '{}-{} eF1'.format(y, z), '{}-{} eF1'.format(z, x),
+                                     '{}-{} eF1'.format(z, y)]].mean(axis=1)
+
+    triplets['jF1_mean'] = triplets[['{}-{} jF1'.format(x, y), '{}-{} jF1'.format(x, z),
+                                     '{}-{} jF1'.format(y, x), '{}-{} jF1'.format(y, z), '{}-{} jF1'.format(z, x),
+                                     '{}-{} jF1'.format(z, y)]].mean(axis=1)
 
     triplets = triplets[['{} id'.format(x), '{} id'.format(y), '{} id'.format(z),
                          '{} Exon(s)_x'.format(x), '{} Exon(s)_x'.format(y), '{} Exon(s)_x'.format(z),
                          '{}-{} ccode'.format(x, y), '{}-{} ccode'.format(x, z), '{}-{} ccode'.format(y, z),
-                         '{}-{} ccode'.format(y, x), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(z, y), 'nF1_mean']]
+                         '{}-{} ccode'.format(y, x), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(z, y), 'nF1_mean',
+                         'eF1_mean', 'jF1_mean']]
 
     triplets.columns = [x, y, z, '{} Exon(s)'.format(x), '{} Exon(s)'.format(y), '{} Exon(s)'.format(z),
                         '{}-{} ccode'.format(x, y), '{}-{} ccode'.format(x, z), '{}-{} ccode'.format(y, x),
-                        '{}-{} ccode'.format(y, z), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(z, y), 'nF1_mean']
+                        '{}-{} ccode'.format(y, z), '{}-{} ccode'.format(z, x), '{}-{} ccode'.format(z, y), 'nF1_mean',
+                        'eF1_mean', 'jF1_mean']
 
     #print(triplets)
     return triplets
 
+def histogram(triplets,confidence):
+    a = triplets.groupby(["nF1_mean","eF1_mean","jF1_mean"]).size().reset_index().rename(columns={0: 'count'})
+    a.hist(column=["nF1_mean","eF1_mean","jF1_mean"], bins=10, figsize=[7, 7], xlabelsize=10, ylabelsize=10)
+    plt.tight_layout()
+
+    plotsv = "%s.png" % 'F1 Statstics of {} Triplets'.format(confidence)
+    plt.savefig(plotsv)
 
 def crossch(existl, triplets, x, y, z):
     """Crosscheck with consortium list"""
@@ -425,6 +442,7 @@ def main():
         triplets_HC = sixway(refr_merge_HC[(x, y)], refr_merge_HC[(x, z)], refr_merge_HC[(y, z)], x, y, z)
         with open("triplets_HC.tsv", "wt") as out:
             triplets_HC.to_csv(out, sep="\t")
+        histogram(triplets_HC, 'HC')
 
         triplets_LC = sixway(refr_merge_LC[(x, y)], refr_merge_LC[(x, z)], refr_merge_LC[(y, z)], x, y, z)
         with open("triplets_LC.tsv", "wt") as out:
