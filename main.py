@@ -417,7 +417,7 @@ def main():
         pieplot(comparLC[(x, y)], x, y, 'LC')
 
 
-    with open('All_F1.text'.format(x,y), 'w') as F1:
+    with open('All_F1.text', 'w') as F1:
         for x, y in itertools.permutations(genomes, 2):
             sys.stdout = F1
             getF1[(x, y)] = getf1(comparisons[(x, y)],x,y)
@@ -440,57 +440,53 @@ def main():
 
     for x, y, z in itertools.combinations(genomes, 3):
         triplets_HC = sixway(refr_merge_HC[(x, y)], refr_merge_HC[(x, z)], refr_merge_HC[(y, z)], x, y, z)
-        with open("triplets_HC.tsv", "wt") as out:
+        with open("triplets_HC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_HC.to_csv(out, sep="\t")
         histogram(triplets_HC, 'HC')
 
         triplets_LC = sixway(refr_merge_LC[(x, y)], refr_merge_LC[(x, z)], refr_merge_LC[(y, z)], x, y, z)
-        with open("triplets_LC.tsv", "wt") as out:
+        with open("triplets_LC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_LC.to_csv(out, sep="\t")
 
         triplets_all = pd.concat([triplets_HC, triplets_LC],join='outer')
-        with open("triplets_all.tsv", "wt") as out:
+        with open("triplets_all_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_all.to_csv(out, sep="\t")
 
     for x, y, z in itertools.combinations(genomes, 3):
         triplets_HC_eq = allmatches(triplets_HC, x, y, z)
-        with open("triplets_HC_eq.tsv", "wt") as out:
+        with open("triplets_HC_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_HC_eq.to_csv(out, sep="\t")
 
         triplets_LC_eq = allmatches(triplets_LC, x, y, z)
-        with open("triplets_LC_eq.tsv", "wt") as out:
+        with open("triplets_LC_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_LC_eq.to_csv(out, sep="\t")
 
         triplets_all_eq = allmatches(triplets_all, x, y, z)
-        with open("triplets_all_eq.tsv", "wt") as out:
+        with open("triplets_all_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_all_eq.to_csv(out, sep="\t")
 
     for x, y, z in itertools.combinations(genomes, 3):
         existl = pd.read_csv('wheat.homeolog_groups.release.nonTE.TRIADS.chr1', sep='\t')
-        crosscheck_HQ = crossch(existl, triplets_HC, x, y, z)
-        with open("crosscheck_HQ.tsv", "wt") as out:
-            crosscheck_HQ.to_csv(out, sep="\t")
+        crosscheck_HC = crossch(existl, triplets_HC, x, y, z)
+        with open("crosscheck_HC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
+            crosscheck_HC.to_csv(out, sep="\t")
 
-        crosscheck_HQ_eq = crossch(existl, triplets_HC_eq, x, y, z)
-        with open("crosscheck_HQ_eq.tsv", "wt") as out:
-            crosscheck_HQ_eq.to_csv(out, sep="\t")
+        crosscheck_HC_eq = crossch(existl, triplets_HC_eq, x, y, z)
+        with open("crosscheck_HC_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
+            crosscheck_HC_eq.to_csv(out, sep="\t")
 
-        crosscheck_LQ = crossch(existl, triplets_LC, x, y, z)
-        with open("crosscheck_LQ.tsv", "wt") as out:
-            crosscheck_LQ.to_csv(out, sep="\t")
+        crosscheck_LC = crossch(existl, triplets_LC, x, y, z)
+        with open("crosscheck_LC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
+            crosscheck_LC.to_csv(out, sep="\t")
 
         crosscheck_all = crossch(existl, triplets_all, x, y, z)
-        with open("crosscheck_all.tsv", "wt") as out:
+        with open("crosscheck_all_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             crosscheck_all.to_csv(out, sep="\t")
 
         crosscheck_all_eq = crossch(existl, triplets_all_eq, x, y, z)
-        with open("crosscheck_all_eq.tsv", "wt") as out:
+        with open("crosscheck_all_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             crosscheck_all_eq.to_csv(out, sep="\t")
 
-
-    # Let's say the result is a pandas DataFrame
-    df = pd.DataFrame()
-    df.to_csv(args.out, sep="\t")
 
 
 
