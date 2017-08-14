@@ -341,6 +341,12 @@ def allmatches(df,x,y,z):
 
     return triplets_eq
 
+def percent(cross,lst):
+    trpcrs = (len(cross)/len(lst))*100
+    trpcrs = str(round(trpcrs, 2))
+
+    return trpcrs
+
 
 
 def main():
@@ -480,26 +486,72 @@ def main():
         histogram(triplets_all_eq, 'all', 'Exact Matches',x,y,z)
 
     for x, y, z in itertools.combinations(genomes, 3):
-        existl = pd.read_csv('wheat.homeolog_groups.release.nonTE.TRIADS.tsv', sep='\t')
+        rawexistl = pd.read_csv('wheat.homeolog_groups.release.nonTE.TRIADS.tsv', sep='\t')
+        existl = rawexistl[rawexistl['A'].str.contains('CS{}'.format(args.A[:1]))]
         crosscheck_HC = crossch(existl, triplets_HC, x, y, z)
         with open("crosscheck_HC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             crosscheck_HC.to_csv(out, sep="\t")
+        with open("percent_HC_{}-{}-{}.txt".format(x, y, z), "wt") as out:
+            for i in [existl, triplets_HC]:
+                percent_HC = percent(crosscheck_HC,i)
+                if i is existl:
+                    out.write('{}-{}-{} proportion in consortium list ('.format(x,y,z) + str(len(existl)) + '): ')
+                    out.write(str(percent_HC) + '% (' + str(len(crosscheck_HC)) + ')\n')
+                else:
+                    out.write('{}-{}-{} proportion in generated triplets ('.format(x,y,z) + str(len(triplets_HC))+'): ')
+                    out.write(str(percent_HC) + '% (' + str(len(crosscheck_HC)) + ')\n')
 
         crosscheck_HC_eq = crossch(existl, triplets_HC_eq, x, y, z)
         with open("crosscheck_HC_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             crosscheck_HC_eq.to_csv(out, sep="\t")
+        with open("percent_HCeq_{}-{}-{}.txt".format(x, y, z), "wt") as out:
+            for i in [existl, triplets_HC_eq]:
+                percent_HC_eq = percent(crosscheck_HC_eq,i)
+                if i is existl:
+                    out.write('{}-{}-{} proportion in consortium list ('.format(x,y,z) + str(len(existl)) + '): ')
+                    out.write(str(percent_HC_eq) + '% (' + str(len(crosscheck_HC_eq)) + ')\n')
+                else:
+                    out.write('{}-{}-{} Against generated triplets: '.format(x,y,z) + str(len(triplets_HC))+'): ')
+                    out.write(str(percent_HC_eq) + '% (' + str(len(crosscheck_HC_eq)) + ')\n')
 
-        crosscheck_LC = crossch(existl, triplets_LC, x, y, z)
-        with open("crosscheck_LC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
-            crosscheck_LC.to_csv(out, sep="\t")
+        #crosscheck_LC = crossch(existl, triplets_LC, x, y, z)
+        #with open("crosscheck_LC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
+        #    crosscheck_LC.to_csv(out, sep="\t")
+        #with open("percent_LC_{}-{}-{}.txt".format(x, y, z), "wt") as out:
+        #    for i in [existl, triplets_LC]:
+        #        percent_LC = percent(crosscheck_LC,i)
+        #        if i is existl:
+        #            out.write('{}-{}-{} Against existing list: '.format(x,y,z))
+        #            out.write(str(percent_LC)+'%\n')
+        #        else:
+        #            out.write('{}-{}-{} Against generated triplets: '.format(x,y,z))
+        #            out.write(str(percent_LC) + '%\n')
 
-        crosscheck_all = crossch(existl, triplets_all, x, y, z)
-        with open("crosscheck_all_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
-            crosscheck_all.to_csv(out, sep="\t")
+        #crosscheck_all = crossch(existl, triplets_all, x, y, z)
+        #with open("crosscheck_all_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
+        #    crosscheck_all.to_csv(out, sep="\t")
+        #with open("percent_all_{}-{}-{}.txt".format(x, y, z), "wt") as out:
+        #    for i in [existl, triplets_all]:
+        #        percent_all = percent(crosscheck_all,i)
+        #        if i is existl:
+        #            out.write('{}-{}-{} Against existing list: '.format(x,y,z))
+        #            out.write(str(percent_all)+'%\n')
+        #        else:
+        #            out.write('{}-{}-{} Against generated triplets: '.format(x,y,z))
+        #            out.write(str(percent_all) + '%\n')
 
-        crosscheck_all_eq = crossch(existl, triplets_all_eq, x, y, z)
-        with open("crosscheck_all_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
-            crosscheck_all_eq.to_csv(out, sep="\t")
+        #crosscheck_all_eq = crossch(existl, triplets_all_eq, x, y, z)
+        #with open("crosscheck_all_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
+        #    crosscheck_all_eq.to_csv(out, sep="\t")
+        #with open("percent_alleq_{}-{}-{}.txt".format(x, y, z), "wt") as out:
+        #    for i in [existl, triplets_all_eq]:
+        #        percent_all_eq = percent(crosscheck_all_eq,i)
+        #        if i is existl:
+        #            out.write('{}-{}-{} Against existing list: '.format(x,y,z))
+        #            out.write(str(percent_all_eq)+'%\n')
+        #        else:
+        #            out.write('{}-{}-{} Against generated triplets: '.format(x,y,z))
+        #            out.write(str(percent_all_eq) + '%\n')
 
 
 
