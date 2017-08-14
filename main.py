@@ -282,13 +282,22 @@ def sixway(xy_z_merge, xz_y_merge, yz_x_merge, x, y, z):
     #print(triplets)
     return triplets
 
-def histogram(triplets,confidence):
+def histogram(triplets,confidence,categ,x,y,z):
     a = triplets.groupby(["nF1_mean","eF1_mean","jF1_mean"]).size().reset_index().rename(columns={0: 'count'})
-    a.hist(column=["nF1_mean","eF1_mean","jF1_mean"], bins=10, figsize=[7, 7], xlabelsize=10, ylabelsize=10)
-    plt.tight_layout()
+    #aq = triplets_eq.groupby(["nF1_mean", "eF1_mean", "jF1_mean"]).size().reset_index().rename(columns={0: 'count'})
 
-    plotsv = "%s.png" % 'F1 Statstics of {} Triplets'.format(confidence)
+
+    a.hist(column=["nF1_mean", "eF1_mean", "jF1_mean"], bins=10, figsize=[8, 8], range=(0, 101))
+    plt.suptitle('F1 Stats of {} Triplets ({})'.format(confidence,categ), fontsize=22, fontweight='bold')
+    #plt.tight_layout()
+    plotsv = "%s.png" % 'F1 Statistics of {} {}{}{} Triplets ({})'.format(confidence,x,y,z,categ)
     plt.savefig(plotsv)
+
+    #aq.hist(column=["nF1_mean", "eF1_mean", "jF1_mean"], bins=10, figsize=[8, 8], range=(0, 101))
+    #plt.suptitle("F Stats (All Categories)", fontsize=22, fontweight='bold')
+    # plt.tight_layout()
+    #plotsv = "%s.png" % 'F1 Statstics of {} Triplets (Exact Matches)'.format(confidence)
+    #plt.savefig(plotsv)
 
 def crossch(existl, triplets, x, y, z):
     """Crosscheck with consortium list"""
@@ -442,31 +451,36 @@ def main():
         triplets_HC = sixway(refr_merge_HC[(x, y)], refr_merge_HC[(x, z)], refr_merge_HC[(y, z)], x, y, z)
         with open("triplets_HC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_HC.to_csv(out, sep="\t")
-        histogram(triplets_HC, 'HC')
+        histogram(triplets_HC, 'HC','All Categories',x,y,z)
 
         triplets_LC = sixway(refr_merge_LC[(x, y)], refr_merge_LC[(x, z)], refr_merge_LC[(y, z)], x, y, z)
         with open("triplets_LC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_LC.to_csv(out, sep="\t")
+        histogram(triplets_LC, 'LC', 'All Categories',x,y,z)
 
         triplets_all = pd.concat([triplets_HC, triplets_LC],join='outer')
         with open("triplets_all_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_all.to_csv(out, sep="\t")
+        histogram(triplets_all, 'all', 'All Categories',x,y,z)
 
     for x, y, z in itertools.combinations(genomes, 3):
         triplets_HC_eq = allmatches(triplets_HC, x, y, z)
         with open("triplets_HC_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_HC_eq.to_csv(out, sep="\t")
+        histogram(triplets_HC_eq, 'HC', 'Exact Matches',x,y,z)
 
         triplets_LC_eq = allmatches(triplets_LC, x, y, z)
         with open("triplets_LC_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_LC_eq.to_csv(out, sep="\t")
+        histogram(triplets_LC_eq, 'LC', 'Exact Matches',x,y,z)
 
         triplets_all_eq = allmatches(triplets_all, x, y, z)
         with open("triplets_all_eq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             triplets_all_eq.to_csv(out, sep="\t")
+        histogram(triplets_all_eq, 'all', 'Exact Matches',x,y,z)
 
     for x, y, z in itertools.combinations(genomes, 3):
-        existl = pd.read_csv('wheat.homeolog_groups.release.nonTE.TRIADS.chr1', sep='\t')
+        existl = pd.read_csv('wheat.homeolog_groups.release.nonTE.TRIADS.tsv', sep='\t')
         crosscheck_HC = crossch(existl, triplets_HC, x, y, z)
         with open("crosscheck_HC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             crosscheck_HC.to_csv(out, sep="\t")
