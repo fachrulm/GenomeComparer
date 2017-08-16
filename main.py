@@ -447,6 +447,7 @@ def main():
         #     elif row['CONFIDENCE'] is'True':
         #         comparHC[(x, y)].append(row, ignore_index=True)
         #         #comparLC[(x, y)] = comparisons[(x, y)].drop(comparisons[(x, y)].index[row])
+        pieplot(comparisons[(x, y)], x, y, 'Overall')
         pieplot(comparHC[(x, y)], x, y, 'HC')
         pieplot(comparLC[(x, y)], x, y, 'LC')
 
