@@ -159,6 +159,7 @@ def pieplot(comparison,x,y,confidence):
 
     plotsv = "%s.png" % '{}{}_{}'.format(x, y, confidence)
     plt.savefig(plotsv)
+    plt.close()
 
 def getf1(comparison,x,y):
     #F1 = open('{}_on_{}_F1.text'.format(x,y), 'w')
@@ -341,6 +342,21 @@ def allmatches(df,x,y,z):
 
     return triplets_eq
 
+def nomatches(df,x,y,z):
+    xx = (df['{} Exon(s)'.format(x)] == df['{} Exon(s)'.format(y)]) & \
+        (df['{} Exon(s)'.format(y)] == df['{} Exon(s)'.format(z)])
+    a = df['{}-{} ccode'.format(x, y)].isin(['=', '_']) & df['{}-{} ccode'.format(x, z)].isin(['=', '_']) &\
+        df['{}-{} ccode'.format(y, x)].isin(['=', '_']) & df['{}-{} ccode'.format(y, z)].isin(['=', '_']) & \
+        df['{}-{} ccode'.format(z, x)].isin(['=', '_']) & df['{}-{} ccode'.format(z, y)].isin(['=', '_'])
+    triplets_nomatch = df[~xx & ~a]
+
+    #with open("triplets_eq.tsv", "wt") as out:
+    #    triplets_eq.to_csv(out, sep="\t")
+
+    #print(triplets_eq)
+
+    return triplets_nomatch
+
 def percent(cross,lst):
     trpcrs = (len(cross)/len(lst))*100
     trpcrs = str(round(trpcrs, 2))
@@ -391,6 +407,7 @@ def main():
     refr_merge_LC = dict()
     triplets_all = dict()
     triplets_all_eq = dict()
+    triplets_all_noneq = dict()
     getF1 = dict()
     genomes = [args.A, args.B, args.D]
     comparHC = dict()  # pd.DataFrame(columns=list(itertools.permutations(genomes, 2)))
@@ -399,6 +416,8 @@ def main():
     triplets_LC = dict()
     triplets_HC_eq = dict()
     triplets_LC_eq = dict()
+    triplets_HC_noneq = dict()
+    triplets_LC_noneq = dict()
 
     # Load the reference statistics into the dictionary
     for genome in genomes:
@@ -407,10 +426,10 @@ def main():
     template = re.sub("\?", "{}", args.aligned)
     comp_template = re.sub("\?", "{}", args.refmap)
 
-    for x, y in itertools.permutations(genomes, 2):
+    for x, y in itertools.product(genomes, repeat=2):
         aligned_stats[(x, y)] = load_aligned_stats(template.format(x, y))
 
-    for x, y in itertools.permutations(genomes, 2):
+    for x, y in itertools.product(genomes, repeat=2):
         comparisons[(x, y)] = load_comparisons(comp_template.format(x, y))
         #print(comparisons[(x, y)].columns)
         #comparLC[(x, y)] = pd.DataFrame()
@@ -486,8 +505,24 @@ def main():
         histogram(triplets_all_eq, 'all', 'Exact Matches',x,y,z)
 
     for x, y, z in itertools.combinations(genomes, 3):
+        triplets_HC_noneq = nomatches(triplets_HC, x, y, z)
+        with open("triplets_HC_noneq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
+            triplets_HC_noneq.to_csv(out, sep="\t")
+        histogram(triplets_HC_noneq, 'HC', 'Non-Matches',x,y,z)
+
+        triplets_LC_noneq = nomatches(triplets_LC, x, y, z)
+        with open("triplets_LC_noneq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
+            triplets_LC_noneq.to_csv(out, sep="\t")
+        histogram(triplets_LC_noneq, 'LC', 'Non-Matches',x,y,z)
+
+        triplets_all_noneq = nomatches(triplets_all, x, y, z)
+        with open("triplets_all_noneq_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
+            triplets_all_noneq.to_csv(out, sep="\t")
+        histogram(triplets_all_noneq, 'all', 'Non-Matches',x,y,z)
+
+    for x, y, z in itertools.combinations(genomes, 3):
         rawexistl = pd.read_csv('wheat.homeolog_groups.release.nonTE.TRIADS.tsv', sep='\t')
-        existl = rawexistl[rawexistl['A'].str.contains('CS{}'.format(args.A[:1]))]
+        existl = rawexistl[rawexistl['chrs'].astype(str).str.contains('{}'.format(args.A[:1]))]
         crosscheck_HC = crossch(existl, triplets_HC, x, y, z)
         with open("crosscheck_HC_{}-{}-{}.tsv".format(x,y,z), "wt") as out:
             crosscheck_HC.to_csv(out, sep="\t")
@@ -511,7 +546,7 @@ def main():
                     out.write('{}-{}-{} proportion in consortium list ('.format(x,y,z) + str(len(existl)) + '): ')
                     out.write(str(percent_HC_eq) + '% (' + str(len(crosscheck_HC_eq)) + ')\n')
                 else:
-                    out.write('{}-{}-{} Against generated triplets: '.format(x,y,z) + str(len(triplets_HC))+'): ')
+                    out.write('{}-{}-{} proportion in generated triplets ('.format(x,y,z) + str(len(triplets_HC_eq))+'): ')
                     out.write(str(percent_HC_eq) + '% (' + str(len(crosscheck_HC_eq)) + ')\n')
 
         #crosscheck_LC = crossch(existl, triplets_LC, x, y, z)
