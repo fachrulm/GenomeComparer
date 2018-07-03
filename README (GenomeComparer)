@@ -1,3 +1,0 @@
-This tool was designed to compare the subgenomes of the hexaploid wheat in terms of the gene structure.
-The main Python-based parsing script __(main.py)__ was mainly built based on Pandas and argparse.
-The overall pipeline was built using [SnakeMake] (https://snakemake.readthedocs.io/en/stable/).
